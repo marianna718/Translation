@@ -1,0 +1,6 @@
+huggingface datasets
+huggingface tokenizers 
+
+both can be installed with pip
+
+torch
