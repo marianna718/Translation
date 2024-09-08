@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 
+import warnings
 from datasets import load_dataset
 from tokenizers import Tokenizer
 from tokenizers.models import WordLevel
@@ -138,7 +139,8 @@ def train_model(config):
     # since we also have configuration that allows us to resume the 
     # training in case if anything crashes, lets implament it
     # that will allow us to restore the state of the model and the state of the optimizer
-
+    initial_epoch = 0
+    global_step = 0
     if config['preload']:
         model_filename = get_weights_file_path(config, config['preload'])
         print(f'Preloading model {model_filename}')
@@ -211,7 +213,23 @@ def train_model(config):
             # becouse it also keeps track of some statistics 
             # thou this information can be too big its still a good idea
             # to not start from 0 every time when training 
-            
+            'epoch':  epoch,
+            'model_state_dict': model.state_dict(),
+            'optimizer_state_dict': optimizer.state_dict(),
+            'global_step':global_step
 
-        })
+        }, model_filename)
 
+# NOW lets build the code to run this
+
+if __name__ == '__main__':
+    # lets filter out the warnings
+    warnings.filterwarnings('ignore')
+    config = get_config()
+    train_model(config)
+
+
+# WHAT WE EXPECT BY RUNING THE TRAINING
+# the code shuld download the dataset the first time 
+# then it suld create the tokenizer and saveit into its file
+# and will strt training model for 30 epochs

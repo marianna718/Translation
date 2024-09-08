@@ -11,7 +11,7 @@ def get_config():
         "num_epochs": 20,
         "lr": 10**-4,   #its common to give a very high learning rate at the begining
         # and then to reduce it gradually with every epoch
-        "seq_Len": 350,
+        "seq_len": 350,
         "d_model": 512,
         "lang_src":"en",
         "lang_tgt": "es", #espaniol, spanish

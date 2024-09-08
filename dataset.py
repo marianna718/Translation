@@ -18,9 +18,9 @@ class BilingualDataset(Dataset):
         # we also need the special tokens such as the start, end of sentance
         # there is a method of tokenier that we can use for this
 
-        self.sos_token = torch.Tensor([tokenizer_src.token_to_id(['[SOS]'])], dtype = torch.int64)
-        self.eos_token = torch.Tensor([tokenizer_src.token_to_id(['[EOS]'])], dtype = torch.int64)
-        self.pad_token = torch.Tensor([tokenizer_src.token_to_id(['[PAD]'])], dtype = torch.int64)
+        self.sos_token = torch.tensor([tokenizer_src.token_to_id('[SOS]')], dtype = torch.int64)
+        self.eos_token = torch.tensor([tokenizer_src.token_to_id('[EOS]')], dtype = torch.int64)
+        self.pad_token = torch.tensor([tokenizer_src.token_to_id('[PAD]')], dtype = torch.int64)
 
 
 
@@ -30,7 +30,7 @@ class BilingualDataset(Dataset):
     def __len__(self):
         return len(self.ds)
     
-    def __getitem__(self, index: Any) -> Any:
+    def __getitem__(self, index:any):
 
         # we extract the original pair from hugging face dataset
         src_target_pair = self.ds[index]
