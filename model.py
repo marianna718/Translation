@@ -141,7 +141,7 @@ class FeedForwardBlock(nn.Module):
         # first we will convert it useing linear 1  into another tensor of (batch , seq_len, d_ff)
         # and then we will apply the linear tool which will converted back to the model
 
-        return self.linear_2(self.dropout(torch.relu(self.linear_1(x))))
+        return self.linear_2(self.dropout(torch.relu(self.linear_l(x))))
     
 
 
@@ -227,7 +227,7 @@ class MultiHeadAttentionBlock(nn.Module):
         query = query.view(query.shape[0], query.shape[1], self.h, self.d_k).transpose(1,2)
         # we trasposed becouse we want h dimention to be 2nd instead of third
         
-        key = key.view(key.shape[0], key.shpae[1], self.h, self.d_k).transpose(1,2)
+        key = key.view(key.shape[0], key.shape[1], self.h, self.d_k).transpose(1,2)
         value = value.view(value.shape[0], value.shape[1], self.h, self.d_k).transpose(1,2)
 
         # we have the splited heads, now we need to calculate the attention by using the formula
@@ -250,7 +250,7 @@ class MultiHeadAttentionBlock(nn.Module):
 
 class ResidualConnection(nn.Module):
 
-    def __init__(self, dropout: float) -> None:
+    def __init__(self,  dropout: float) -> None:
         super().__init__()
         self.dropout = nn.Dropout(dropout)
         self.norm = LayerNormalization()
@@ -403,13 +403,13 @@ class Transformer(nn.Module):
         self.projection_layer = projection_layer
 
 
-    def encoder(self, src, src_mask):
+    def encode(self, src, src_mask):
         src = self.src_embed(src)
         src = self.src_pos(src)
         return self.encoder(src, src_mask)
     
 
-    def decoder(self,encoder_output, src_mask, tgt, tgt_mask):
+    def decode(self,encoder_output, src_mask, tgt, tgt_mask):
         tgt = self.tgt_embed(tgt)
         tgt = self.tgt_pos(tgt)
         tgt = self.decoder(tgt, encoder_output, src_mask, tgt_mask)
@@ -427,7 +427,9 @@ class Transformer(nn.Module):
 # we pass the vocabulary size becosue we need to know how big is the vector
 # that needs to be converted into a d_model sized embedding vector
 
-def build_transformer(src_vocab_size: int, tgt_vocab_size: int, src_seq_len: int, tgt_seq_len: int, d_model:int =512, N:int = 6, h:int= 8, dropout: float = 0.1, dff:int = 2048) -> Transformer:
+# choose num of heads 8
+
+def build_transformer(src_vocab_size: int, tgt_vocab_size: int, src_seq_len: int, tgt_seq_len: int, d_model:int =512, N:int = 6, h:int= 2, dropout: float = 0.1, dff:int = 2048) -> Transformer:
     # first we will create the embadding layers
     src_embed = InputEmbeddings(d_model, src_vocab_size)
     tgt_embed = InputEmbeddings(d_model, tgt_vocab_size)

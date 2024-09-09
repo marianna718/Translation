@@ -19,6 +19,52 @@ from config import get_config, get_weights_file_path
 
 from tqdm import tqdm
 
+
+# runing the encoder only once
+def greedy_decode(model, source, source_mask, tokeizer_src, tokenizer_tgt, max_len, device):
+    sos_idx = tokenizer_tgt.token_to_id('[SOS]')
+    eos_idx = tokenizer_tgt.token_to_id('[EOS]')
+# Precompute the encoder output and reuse it fpr every token we get from the decoder
+    encoder_output = model.encode(source, source_mask)
+# How do we do the inferanceing 
+# we give the decoder the start of the token
+# so that the decoder will output the first token of the translated sentance
+# then at every itteration we add the previous token to the decoder input 
+# so we will get the output of the decoder and use it for the next itteration
+
+    # initialize the decoder input with the sos token
+    decoder_input = torch.empty(1,1).fill_(sos_idx).type_as(source).to(device)
+    2,27
+
+
+# new method for validation
+def run_validation(model, validation_ds, tokenier_src, tokenier_Tgt, max_len, device, print_msg, global_state, writer, num_examples=2):
+#    the first ting we do to rund the validation we put our model in evaluation mode
+    model.eval()
+# we will inferance two sentances an dsee
+# what is the output of the model
+    count = 0
+
+    source_text = []
+    espected = []
+    predicted = []
+    # sie of the control window (just use a default value)
+    console_width = 80
+    # we are desableing the gradient calculation
+    with torch.no_grad():
+        # for the validation we have batch size =1
+        for batch in validation_ds:
+            count += 1
+            encoder_input = batch['encoder_input'].to(device)
+            encoder_mask = batch['encoder_mask'].to(device)
+
+            # lets verify that the size of batch is accrtually 1 
+            assert encoder_input.size(0) ==1, "Batch size must be 1 for validation"
+
+
+
+
+
 def get_all_sentences(ds, lang):
     for item in ds:
         # each item in our raw dataset is a pair of sentances one in english one in spanish
@@ -74,7 +120,7 @@ def get_ds(config):
     val_ds_size = len(ds_raw) - train_ds_size
     train_ds_raw, val_ds_raw = random_split(ds_raw, [train_ds_size, val_ds_size])
 # now we have created the tokens but for them we need to have our bilingual dataset
-    train_ds = BilingualDataset(train_ds_raw, tokenizer_src, Tokenizer, config['lang_src'],config['lang_tgt'], config['seq_len'] )
+    train_ds = BilingualDataset(train_ds_raw, tokenizer_src, tokenizer_tgt, config['lang_src'],config['lang_tgt'], config['seq_len'] )
     val_ds = BilingualDataset(val_ds_raw, tokenizer_src, tokenizer_tgt, config['lang_src'], config['lang_tgt'], config['seq_len'])
 
     # we also would like to whatch what is max seq lenght of the source and the target
@@ -103,7 +149,7 @@ def get_ds(config):
 
 # this new method will according to our config vocabulary size build the model
 def get_model(config, vocab_src_len, vocab_tgt_len):
-    model = build_transformer(vocab_src_len, vocab_tgt_len, config['seq_len'], config['seq_len'], config['d_model'])
+    model = build_transformer(vocab_src_len, vocab_tgt_len, config['seq_len'], config['seq_len'], d_model=config['d_model'])
     return model
 
 # if the mode is too big for your gpu you can redusethe number of heads or the number of layers 
