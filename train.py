@@ -33,21 +33,48 @@ def greedy_decode(model, source, source_mask, tokeizer_src, tokenizer_tgt, max_l
 # so we will get the output of the decoder and use it for the next itteration
 
     # initialize the decoder input with the sos token
+    # we have 2 dims becouse one is for the batch and one is for the decoder input
     decoder_input = torch.empty(1,1).fill_(sos_idx).type_as(source).to(device)
-    2,27
+    # we will ask decoder to get the next token untill we reach eather the end of the sentance or the max lenght
+    while True:
+        # and our next stop becoumes when reaches the max len
+        if decoder_input.size(1) == max_len:
+            break
+        # now we also need to create a mask for the target
+        decoder_mask = casual_mask(decoder_input.size(1)).type_as(source_mask).to(device)  #we dont want the input to watch future tokens
+
+        # Calculate the output
+        out = model.decode(encoder_output, source_mask, decoder_input, decoder_mask) #we reuse the output of the encoder for the every itteration of the loop
+
+        # get the next token
+        # we get the probability of the next token using the projection layer
+        prob = model.project(out[:,-1])  #but we only want the projection of the last token [:,-1]
+
+        # now we can use the max to get the token with the max probability
+        _, next_word = torch.max(prob,dim=1)  #the greedy search
+
+# and then we get the "next_word" and append it to hte "decoder_input" becouse its going to be the input of the next itteration
+        decoder_input = torch.cat([decoder_input, torch.empty(1,1).type_as(source).fill_(next_word.item()).to(device)], dim=1 )
+
+        if next_word == eos_idx:
+            break            
+# we remove the batch dimmention by squeezing it
+    return decoder_input.squeeze(0)
+
+
 
 
 # new method for validation
-def run_validation(model, validation_ds, tokenier_src, tokenier_Tgt, max_len, device, print_msg, global_state, writer, num_examples=2):
+def run_validation(model, validation_ds, tokeizer_src, tokenier_tgt, max_len, device, print_msg, global_state, writer, num_examples=2):
 #    the first ting we do to rund the validation we put our model in evaluation mode
     model.eval()
 # we will inferance two sentances an dsee
 # what is the output of the model
     count = 0
 
-    source_text = []
-    espected = []
-    predicted = []
+    # source_texts = []
+    # expected = []
+    # predicted = []
     # sie of the control window (just use a default value)
     console_width = 80
     # we are desableing the gradient calculation
@@ -60,6 +87,33 @@ def run_validation(model, validation_ds, tokenier_src, tokenier_Tgt, max_len, de
 
             # lets verify that the size of batch is accrtually 1 
             assert encoder_input.size(0) ==1, "Batch size must be 1 for validation"
+
+            model_out = greedy_decode(model, encoder_input, encoder_mask, tokeizer_src, tokenier_tgt, max_len, device )
+
+
+            # and then we want to compare the model output with what we have expected -> the label
+            source_text  = batch['src_text'][0]
+            target_text = batch['tgt_text'][0]
+            model_out_text = tokenier_tgt.decode(model_out.detach().cpu().numpy())
+
+            # source_texts.append(source_text)
+            # expected.append(target_text)
+            # predicted.append(model_out_text)
+
+            # and we can also print it to console
+            # we are using print_msg becouse we have used tqdm 
+            print_msg('-'*console_width)
+            print_msg(f'SOIRCE: {source_text}')
+            print_msg(f'Target: {target_text}')
+            print_msg(f'PREDICTED: {model_out_text}')
+
+            if count == num_examples:
+                break
+
+    
+    # if writer:
+        # TorchMetrics CharErrorRate, BLEU, WordErrorRate
+
 
 
 
@@ -207,11 +261,13 @@ def train_model(config):
     # the final loop
 
     for epoch in range(initial_epoch, config['num_epochs']):
-        model.train()
+        # model.train()
 
         # create batch iterator for the data loader using tqdm
         batch_iterator = tqdm(train_dataloader, desc=f'Processing epoch {epoch:02d}')
         for batch in batch_iterator:
+
+            model.train()
 
             encoder_input = batch['encoder_input'].to(device)  #(B, Seq_LEn)
             decoder_input = batch['decoder_input'].to(device)  #(B, Seq_LEn)
@@ -249,9 +305,20 @@ def train_model(config):
             optimizer.step()
             optimizer.zero_grad()
 
+            # here the validation will work at every step
+            # but ist place is at the end of each epoch 
+            # run_validation(model, val_dataloader, tokenizer_src, tokenizer_tgt, config['seq_len'], device, lambda msg: batch_iterator.write(msg), global_step, writer)
+
             global_step +=1
 
         # and we can save the model at the end of every Epoch
+
+
+        # here the validation belongs
+        run_validation(model, val_dataloader, tokenizer_src, tokenizer_tgt, config['seq_len'], device, lambda msg: batch_iterator.write(msg), global_step, writer)
+        # at the end of every epoch
+        
+
 
         model_filename = get_weights_file_path(config, f'{epoch:02d}')
         torch.save({
